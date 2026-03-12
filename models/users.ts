@@ -3,7 +3,8 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 export interface User extends Document {
     name: string;
     email: string;
-    password: string;
+    password?: string;
+    googleId?: string;
     refreshTokens: string[];
     createdAt: Date;
     updatedAt: Date;
@@ -21,7 +22,9 @@ const userSchema = new Schema<User>({
     },
     password: {
         type: String,
-        required: true
+    },
+    googleId: {
+        type: String
     },
     refreshTokens: {
         type: [String],

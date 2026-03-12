@@ -8,7 +8,7 @@ import { Express } from "express";
 dotenv.config({ path: ".env.test" });
 
 const PORT = Number(process.env.PORT) || 3000;
-const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/mockdatabase";
+const MONGO_URI = process.env.MONGO_MOCK_URI || "mongodb://localhost:27017/mockdatabase";
 // Create TestUser for authenticated interaction with the server
 const testUser = new TestUser(
     "Tester", 
