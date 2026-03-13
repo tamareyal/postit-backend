@@ -54,7 +54,7 @@ describe("Users API", () => {
         const loginRes = await request(serverURL)
             .post("/api/auth/login")
             .send({
-                email: updatedData.email,
+                identifier: updatedData.email,
                 password: updatedData.password
             });
         
