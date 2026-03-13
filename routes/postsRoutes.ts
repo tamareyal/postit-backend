@@ -66,6 +66,54 @@ router.get("/", authenticate, postsController.getAll);
  */
 router.post("/", authenticate, postsController.create);
 
+// Route to get a paginated list of posts using cursor-based pagination
+/**
+ * @swagger
+ * /api/posts/page:
+ *   get:
+ *     tags:
+ *       - Posts
+ *     summary: Retrieve the next page of posts
+ *     description: Returns a batch of posts sorted by creation date descending. Pass `lastCreatedAt` from the previous response as a cursor to retrieve the next page.
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of posts to return (max 100).
+ *       - in: query
+ *         name: lastCreatedAt
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: ISO date cursor from the previous page's `nextCursor` field.
+ *     responses:
+ *       200:
+ *         description: A page of posts with a cursor for the next page.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Post'
+ *                 nextCursor:
+ *                   type: string
+ *                   format: date-time
+ *                   nullable: true
+ *                   description: Pass this value as `lastCreatedAt` to retrieve the next page. Null when there are no more pages.
+ *       400:
+ *         description: Invalid lastCreatedAt value
+ *       401:
+ *         description: Unauthorized
+ */
+router.get("/page", authenticate, postsController.getNextPage);
+
 // Route to get a specific post by ID
 /**
  * @swagger
