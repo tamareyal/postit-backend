@@ -72,23 +72,12 @@ export const swaggerSpec = swaggerJsdoc({
           }
         },
         AuthLoginRequest: {
-            type: "object",
-            oneOf: [
-                {
-                required: ["username", "password"],
-                properties: {
-                    username: { type: "string", description: "Username" },
-                    password: { type: "string", description: "User's password" }
-                }
-                },
-                {
-                required: ["email", "password"],
-                properties: {
-                    email: { type: "string", description: "Email" },
-                    password: { type: "string", description: "User's password" }
-                }
-                }
-            ],
+          type: "object",
+          properties: {
+            identifier: { type: "string", description: "Username or email" },
+            password: { type: "string", description: "User's password" }
+          },
+          required: ["identifier", "password"]
         },
         AuthLoginResponse: {
           type: "object",

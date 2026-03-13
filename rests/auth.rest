@@ -12,7 +12,7 @@ POST http://localhost:3000/api/auth/login HTTP/1.1
 Content-Type: application/json
 
 {
-    "email": "testuser@example.com",
+    "identifier": "testuser@example.com",
     "password": "password123"
 }   
 
@@ -21,7 +21,7 @@ POST http://localhost:3000/api/auth/login HTTP/1.1
 Content-Type: application/json
 
 {
-    "username": "testuser",
+    "identifier": "testuser",
     "password": "password123"
 }   
 
@@ -30,7 +30,7 @@ POST http://localhost:3000/api/auth/login HTTP/1.1
 Content-Type: application/json
 
 {
-    "username": "testuser",
+    "identifier": "testuser",
     "password": "password12"
 }   
 
@@ -39,6 +39,6 @@ POST http://localhost:3000/api/auth/login HTTP/1.1
 Content-Type: application/json
 
 {
-    "username": "testuserrr",
+    "identifier": "testuserrr",
     "password": "password12"
 }   
