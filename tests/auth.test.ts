@@ -397,6 +397,7 @@ describe('Authentication Tests', () => {
         expect(res.body).toHaveProperty('message', 'Google credential required');
     });
 
+
     test('Google login with valid credential', async () => {
         const verifyIdTokenSpy = jest.spyOn(OAuth2Client.prototype as any, 'verifyIdToken').mockResolvedValue({
             getPayload: () => ({
@@ -435,22 +436,17 @@ describe('Authentication Tests', () => {
 
     test('Logout with valid refresh token', async () => {
         const unique = Date.now();
-        const email = `logout-user-${unique}@example.com`;
-        const password = 'LogoutPassword123';
 
-        const registerRes = await request(expressApp)
-            .post('/api/auth/register')
-            .send({
-                username: `logout-user-${unique}`,
-                email,
-                password
-            });
-
-        expect(registerRes.status).toBe(201);
+        const tempUser = new TestUser(
+            `logout-user-${unique}`,
+            `logout-user-${unique}@example.com`,
+            "LogoutPassword123"
+        );
+        const [, refreshToken] = await tempUser.registerUser(serverURL);
 
         const res = await request(expressApp)
             .post('/api/auth/logout')
-            .send({ refreshToken: registerRes.body.refreshToken });
+            .send({ refreshToken });
 
         expect(res.status).toBe(200);
         expect(res.body).toHaveProperty('message', 'Logged out successfully');
@@ -503,25 +499,21 @@ describe('Authentication Tests', () => {
         const email = `multi-${unique}@example.com`;
         const password = 'MultiSessionPassword123';
 
-        const res = await request(serverURL)
-            .post('/api/auth/register')
-            .send({
-                username: `multi-user-${unique}`,
-                email,
-                password
-            });
-            
-        expect(res.status).toBe(201);
-        expect(res.body).toHaveProperty('userId');
+        const tempUser = new TestUser(
+            `multi-user-${unique}`,
+            email,
+            password
+        );
+        const [, refreshToken] = await tempUser.registerUser(serverURL);
 
-        const userId = res.body.userId;
-        const firstRefreshToken = res.body.refreshToken;
+        const firstRefreshToken = refreshToken;
 
        const res2 = await request(serverURL)
             .post('/api/auth/login')
           .send({ identifier: email, password });
         
         expect(res2.status).toBe(200);
+        const userId = res2.body.userId;
         const secondRefreshToken = res2.body.refreshToken;
 
         // Logout using first token
