@@ -66,6 +66,54 @@ router.get("/", authenticate, commentsController.getAll);
  */
 router.post("/", authenticate, commentsController.create);
 
+// Route to get a paginated list of comments using cursor-based pagination
+/**
+ * @swagger
+ * /api/comments/page:
+ *   get:
+ *     tags:
+ *       - Comments
+ *     summary: Retrieve the next page of comments
+ *     description: Returns a batch of comments sorted by creation date descending. Pass `lastCreatedAt` from the previous response as a cursor to retrieve the next page.
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of comments to return (max 100).
+ *       - in: query
+ *         name: lastCreatedAt
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: ISO date cursor from the previous page's `nextCursor` field.
+ *     responses:
+ *       200:
+ *         description: A page of comments with a cursor for the next page.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Comment'
+ *                 nextCursor:
+ *                   type: string
+ *                   format: date-time
+ *                   nullable: true
+ *                   description: Pass this value as `lastCreatedAt` to retrieve the next page. Null when there are no more pages.
+ *       400:
+ *         description: Invalid lastCreatedAt value
+ *       401:
+ *         description: Unauthorized
+ */
+router.get("/page", authenticate, commentsController.getNextPage);
+
 // Route to get a specific comment by ID
 /**
  * @swagger

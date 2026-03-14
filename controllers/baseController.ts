@@ -60,6 +60,30 @@ class BaseController<T> {
             return res.status(500).json({ message: error instanceof Error ? error.message : "Error" });
         }
     };
+
+    getNextPage = async (req: Request, res: Response) => {
+        const limit = Math.min(parseInt(req.query.limit as string) || 10, 100);
+        const lastCreatedAt = req.query.lastCreatedAt as string | undefined;
+
+        const filter: Record<string, unknown> = {};
+        if (lastCreatedAt) {
+            const cursor = new Date(lastCreatedAt);
+            if (isNaN(cursor.getTime())) {
+                return res.status(400).json({ message: "Invalid lastCreatedAt value" });
+            }
+            filter.createdAt = { $lt: cursor };
+        }
+
+        try {
+            const data = await this.model.find(filter).sort({ createdAt: -1 }).limit(limit);
+            const nextCursor = data.length > 0
+                ? (data[data.length - 1] as unknown as { createdAt: Date }).createdAt
+                : null;
+            return res.status(200).json({ data, nextCursor });
+        } catch (error) {
+            return res.status(500).json({ message: error instanceof Error ? error.message : "Error" });
+        }
+    };
 }
 
 export default BaseController;

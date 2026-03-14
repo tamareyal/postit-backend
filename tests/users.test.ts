@@ -15,6 +15,59 @@ describe("Users API", () => {
         expect(res.body.length).toBeGreaterThan(0);
     });
 
+    test("Get Next Page for Users", async () => {
+        const timestamp = Date.now();
+        const pageUser1 = new TestUser(
+            `page_user_${timestamp}_1`,
+            `page_user_${timestamp}_1@example.com`,
+            "tempPassword123"
+        );
+        const pageUser2 = new TestUser(
+            `page_user_${timestamp}_2`,
+            `page_user_${timestamp}_2@example.com`,
+            "tempPassword123"
+        );
+
+        await pageUser1.registerUser(serverURL);
+        await pageUser2.registerUser(serverURL);
+
+        const firstPageRes = await request(serverURL)
+            .get("/api/users/page?limit=2")
+            .set("Authorization", `Bearer ${testUser.accessToken}`);
+
+        expect(firstPageRes.status).toBe(200);
+        expect(Array.isArray(firstPageRes.body.data)).toBe(true);
+        expect(firstPageRes.body.data.length).toBeLessThanOrEqual(2);
+        expect(firstPageRes.body).toHaveProperty("nextCursor");
+
+        const firstPageUserIds = firstPageRes.body.data.map((user: { _id: string }) => user._id);
+        expect(firstPageUserIds).toContain(pageUser1.id);
+        expect(firstPageUserIds).toContain(pageUser2.id);
+
+        if (firstPageRes.body.nextCursor) {
+            const nextPageRes = await request(serverURL)
+                .get(`/api/users/page?limit=2&lastCreatedAt=${encodeURIComponent(firstPageRes.body.nextCursor)}`)
+                .set("Authorization", `Bearer ${testUser.accessToken}`);
+
+            expect(nextPageRes.status).toBe(200);
+            expect(Array.isArray(nextPageRes.body.data)).toBe(true);
+            expect(nextPageRes.body.data.length).toBeLessThanOrEqual(2);
+
+            for (const user of nextPageRes.body.data) {
+                expect(new Date(user.createdAt).getTime()).toBeLessThan(new Date(firstPageRes.body.nextCursor).getTime());
+            }
+        }
+    });
+
+    test("Get Next Page for Users with invalid cursor", async () => {
+        const res = await request(serverURL)
+            .get("/api/users/page?lastCreatedAt=not-a-date")
+            .set("Authorization", `Bearer ${testUser.accessToken}`);
+
+        expect(res.status).toBe(400);
+        expect(res.body.message).toBe("Invalid lastCreatedAt value");
+    });
+
     test("Get User by ID", async () => {
         const res = await request(serverURL)
             .get(`/api/users/${testUser.id}`)

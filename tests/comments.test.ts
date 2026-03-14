@@ -42,6 +42,40 @@ describe("Comments API", () => {
         expect(res.body.length).toEqual(comments.length);
     });
 
+    test("Get Next Page for Comments", async () => {
+        const firstPageRes = await request(serverURL)
+            .get("/api/comments/page?limit=2")
+            .set("Authorization", `Bearer ${testUser.accessToken}`);
+
+        expect(firstPageRes.status).toBe(200);
+        expect(Array.isArray(firstPageRes.body.data)).toBe(true);
+        expect(firstPageRes.body.data.length).toBeLessThanOrEqual(2);
+        expect(firstPageRes.body).toHaveProperty("nextCursor");
+
+        if (firstPageRes.body.nextCursor) {
+            const nextPageRes = await request(serverURL)
+                .get(`/api/comments/page?limit=2&lastCreatedAt=${encodeURIComponent(firstPageRes.body.nextCursor)}`)
+                .set("Authorization", `Bearer ${testUser.accessToken}`);
+
+            expect(nextPageRes.status).toBe(200);
+            expect(Array.isArray(nextPageRes.body.data)).toBe(true);
+            expect(nextPageRes.body.data.length).toBeLessThanOrEqual(2);
+
+            for (const comment of nextPageRes.body.data) {
+                expect(new Date(comment.createdAt).getTime()).toBeLessThan(new Date(firstPageRes.body.nextCursor).getTime());
+            }
+        }
+    });
+
+    test("Get Next Page for Comments with invalid cursor", async () => {
+        const res = await request(serverURL)
+            .get("/api/comments/page?lastCreatedAt=not-a-date")
+            .set("Authorization", `Bearer ${testUser.accessToken}`);
+
+        expect(res.status).toBe(400);
+        expect(res.body.message).toBe("Invalid lastCreatedAt value");
+    });
+
 
     test("Get Comment by ID", async () => {
         const commentToGet = comments[0];
