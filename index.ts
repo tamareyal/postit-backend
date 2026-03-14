@@ -3,9 +3,11 @@ import postsRouter from "./routes/postsRoutes";
 import commentsRouter from "./routes/commentsRoutes";
 import usersRouter from "./routes/usersRoutes";
 import authRouter from "./routes/authRoutes";
+import generalRouter from "./routes/generalRoutes";
 import mongoose from "mongoose";
 import swaggerUi from "swagger-ui-express";
 import { swaggerSpec } from "./swagger";
+import cors from 'cors';
 
 
 async function startServer(port: number, mongoURL: string): Promise<[mongoose.Connection, Express]> {
@@ -28,6 +30,13 @@ function setupExpress(): Express {
   const app = express();    
   app.use(express.urlencoded({ extended: false }));
   app.use(express.json());
+  app.use(cors({
+    origin: 'http://localhost:5173',
+    credentials: true, 
+  }));
+
+  app.use("/uploads", express.static("uploads"));
+  app.use("/api/general", generalRouter);
 
   app.use("/api/posts", postsRouter);
   app.use("/api/comments", commentsRouter);

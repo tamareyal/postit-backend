@@ -15,7 +15,8 @@ export const swaggerSpec = swaggerJsdoc({
       { name: "Users", description: "User endpoints" },
       { name: "Posts", description: "Post endpoints" },
       { name: "Comments", description: "Comment endpoints" },
-      { name: "Auth", description: "Authentication endpoints" }
+      { name: "Auth", description: "Authentication endpoints" },
+      { name: "Storage", description: "Image upload and deletion endpoints" }
     ],
     components: {
       securitySchemes: {
@@ -72,23 +73,12 @@ export const swaggerSpec = swaggerJsdoc({
           }
         },
         AuthLoginRequest: {
-            type: "object",
-            oneOf: [
-                {
-                required: ["username", "password"],
-                properties: {
-                    username: { type: "string", description: "Username" },
-                    password: { type: "string", description: "User's password" }
-                }
-                },
-                {
-                required: ["email", "password"],
-                properties: {
-                    email: { type: "string", description: "Email" },
-                    password: { type: "string", description: "User's password" }
-                }
-                }
-            ],
+          type: "object",
+          properties: {
+            identifier: { type: "string", description: "Username or email" },
+            password: { type: "string", description: "User's password" }
+          },
+          required: ["identifier", "password"]
         },
         AuthLoginResponse: {
           type: "object",
@@ -110,6 +100,18 @@ export const swaggerSpec = swaggerJsdoc({
           type: "object",
           properties: {
             message: { type: "string", description: "Error message" }
+          }
+        },
+        ImageUploadResponse: {
+          type: "object",
+          properties: {
+            path: { type: "string", description: "Relative path of the uploaded image" }
+          }
+        },
+        DeleteImageResponse: {
+          type: "object",
+          properties: {
+            message: { type: "string", description: "Deletion result message" }
           }
         }
       }

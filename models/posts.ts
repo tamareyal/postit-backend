@@ -4,6 +4,7 @@ export interface Post extends Document {
     title: string;
     content: string;
     sender_id: mongoose.Schema.Types.ObjectId;
+    image?: string;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -21,6 +22,10 @@ const postSchema = new Schema<Post>({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Users',
         required: true
+    },
+    image: {
+        type: String,
+        required: false
     }
 }, { timestamps: true });
 
