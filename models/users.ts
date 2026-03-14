@@ -6,6 +6,7 @@ export interface User extends Document {
     password?: string;
     googleId?: string;
     refreshTokens: string[];
+    image?: string;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -29,6 +30,10 @@ const userSchema = new Schema<User>({
     refreshTokens: {
         type: [String],
         default: []
+    },
+    image: {
+        type: String,
+        required: false
     }
 }, { timestamps: true });
 
