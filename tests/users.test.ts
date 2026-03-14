@@ -40,6 +40,10 @@ describe("Users API", () => {
         expect(firstPageRes.body.data.length).toBeLessThanOrEqual(2);
         expect(firstPageRes.body).toHaveProperty("nextCursor");
 
+        const firstPageUserIds = firstPageRes.body.data.map((user: { _id: string }) => user._id);
+        expect(firstPageUserIds).toContain(pageUser1.id);
+        expect(firstPageUserIds).toContain(pageUser2.id);
+
         if (firstPageRes.body.nextCursor) {
             const nextPageRes = await request(serverURL)
                 .get(`/api/users/page?limit=2&lastCreatedAt=${encodeURIComponent(firstPageRes.body.nextCursor)}`)
