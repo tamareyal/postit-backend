@@ -64,6 +64,70 @@ router.get("/", authenticate, postsController.getAll);
  *       401:
  *         description: Unauthorized
  */
+
+// Route to search posts using free-text parsed by the LLM service
+/**
+ * @swagger
+ * /api/posts/search:
+ *   post:
+ *     tags:
+ *       - Posts
+ *     summary: Search posts using free-text
+ *     description: Accepts a natural-language search query, converts it into a MongoDB filter via the configured LLM service, sanitizes the filter, and returns matching posts.
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - query
+ *             properties:
+ *               query:
+ *                 type: string
+ *                 description: Natural-language description of the desired posts.
+ *               limit:
+ *                 type: integer
+ *                 minimum: 1
+ *                 maximum: 100
+ *                 default: 10
+ *               lastCreatedAt:
+ *                 type: string
+ *                 format: date-time
+ *                 description: Optional cursor for fetching the next page.
+ *               debug:
+ *                 type: boolean
+ *                 description: Include the sanitized Mongo filter in the response.
+ *     responses:
+ *       200:
+ *         description: Matching posts.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Post'
+ *                 nextCursor:
+ *                   type: string
+ *                   format: date-time
+ *                   nullable: true
+ *                 mongoFilter:
+ *                   type: object
+ *                   additionalProperties: true
+ *       400:
+ *         description: Invalid search request
+ *       401:
+ *         description: Unauthorized
+ *       503:
+ *         description: Search service unavailable
+ */
+router.post("/search", authenticate, postsController.search);
+
 router.post("/", authenticate, postsController.create);
 
 // Route to get a paginated list of posts using cursor-based pagination

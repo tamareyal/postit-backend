@@ -83,9 +83,16 @@ class Querier<T> {
 	}
 
 	private async fetchPage(queryHash: string, session: QuerySession<T>, cursor?: Date): Promise<PageResult<T>> {
-		const filter: Record<string, unknown> = { ...session.filter };
+		let filter: Record<string, unknown>;
 		if (cursor) {
-			filter.createdAt = { $lt: cursor };
+			filter = {
+				$and: [
+					session.filter,
+					{ createdAt: { $lt: cursor } }
+				]
+			};
+		} else {
+			filter = { ...session.filter };
 		}
 
 		const data = await this.model

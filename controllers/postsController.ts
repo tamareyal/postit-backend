@@ -2,10 +2,49 @@ import { AuthenticatedRequest } from '../middlewares/authMiddleware';
 import { Request, Response } from 'express';
 import PostsModel, { Post } from '../models/posts';
 import BaseController from './baseController';
+import ollamaService, { OllamaServiceError } from '../services/ollamaService';
+import { MongoFilterSanitizerError, sanitizeMongoFilter } from '../utils/mongoFilterSanitizer';
 
 class PostsController extends BaseController<Post> {
     constructor() {
         super(PostsModel);
+    }
+
+    search = async (req: AuthenticatedRequest, res: Response) => {
+        const { query, limit, debug } = req.body as {
+            query?: string;
+            limit?: number | string;
+            debug?: boolean;
+        };
+
+        if (typeof query !== 'string' || !query.trim()) {
+            return res.status(400).json({ message: 'query is required' });
+        }
+
+        const parsedLimit = Math.min(Math.max(Number(limit) || 10, 1), 100);
+
+        try {
+            const llmFilter = await ollamaService.buildSearchFilter(query);
+            const safeFilter = sanitizeMongoFilter(llmFilter);
+
+            const page = await this.querier.startSession({
+                filter: safeFilter,
+                limit: parsedLimit
+            });
+            return res.status(200).json({
+                ...page,
+                ...(debug || process.env.NODE_ENV !== 'production' ? { mongoFilter: safeFilter } : {})
+            });
+
+        } catch (error) {
+            if (error instanceof MongoFilterSanitizerError) {
+                return res.status(400).json({ message: error.message });
+            }
+            if (error instanceof OllamaServiceError) {
+                return res.status(503).json({ message: error.message });
+            }
+            return res.status(500).json({ message: error instanceof Error ? error.message : 'Error' });
+        }
     }
 
     create = async (req: AuthenticatedRequest, res: Response) => {
