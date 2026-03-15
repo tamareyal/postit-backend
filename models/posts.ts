@@ -5,6 +5,7 @@ export interface Post extends Document {
     content: string;
     sender_id: mongoose.Schema.Types.ObjectId;
     image?: string;
+    likes: mongoose.Schema.Types.ObjectId[];
     createdAt: Date;
     updatedAt: Date;
 }
@@ -26,6 +27,11 @@ const postSchema = new Schema<Post>({
     image: {
         type: String,
         required: false
+    },
+    likes: {
+        type: [mongoose.Schema.Types.ObjectId],
+        ref: 'Users',
+        default: []
     }
 }, { timestamps: true });
 

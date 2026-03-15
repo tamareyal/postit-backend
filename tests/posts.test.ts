@@ -283,4 +283,78 @@ describe("Posts API", () => {
         expect(res.status).toBe(401);
         expect(res.body.message).toBe("Invalid token");
     });
+
+    test("Like a Post adds the user's like", async () => {
+        const post = posts[0];
+        const res = await request(expressApp)
+            .put(`/api/posts/${post._id}/like`)
+            .set("Authorization", `Bearer ${testUser.accessToken}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body).toHaveProperty("likes");
+        expect(res.body.likes).toBe(1);
+    });
+
+    test("Like a Post again removes the like (toggle off)", async () => {
+        const post = posts[0];
+        const res = await request(expressApp)
+            .put(`/api/posts/${post._id}/like`)
+            .set("Authorization", `Bearer ${testUser.accessToken}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body).toHaveProperty("likes");
+        expect(res.body.likes).toBe(0);
+    });
+
+    test("Multiple users can like the same post", async () => {
+        const post = posts[0];
+        const secondUser = new TestUser("likeuser", "likeuser@example.com", "likePassword123");
+        await secondUser.registerUser(serverURL);
+
+        await request(expressApp)
+            .put(`/api/posts/${post._id}/like`)
+            .set("Authorization", `Bearer ${testUser.accessToken}`);
+
+        const res = await request(expressApp)
+            .put(`/api/posts/${post._id}/like`)
+            .set("Authorization", `Bearer ${secondUser.accessToken}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.likes).toBe(2);
+
+        // Clean up: unlike both
+        await request(expressApp)
+            .put(`/api/posts/${post._id}/like`)
+            .set("Authorization", `Bearer ${testUser.accessToken}`);
+        await request(expressApp)
+            .put(`/api/posts/${post._id}/like`)
+            .set("Authorization", `Bearer ${secondUser.accessToken}`);
+    });
+
+    test("Like a Post without authentication returns 401", async () => {
+        const post = posts[0];
+        const res = await request(serverURL)
+            .put(`/api/posts/${post._id}/like`);
+
+        expect(res.status).toBe(401);
+    });
+
+    test("Like a non-existent Post returns 404", async () => {
+        const nonExistentPostId = "64b7f8f8f8f8f8f8f8f8f8f8";
+        const res = await request(expressApp)
+            .put(`/api/posts/${nonExistentPostId}/like`)
+            .set("Authorization", `Bearer ${testUser.accessToken}`);
+
+        expect(res.status).toBe(404);
+        expect(res.body.message).toBe("Post not found");
+    });
+
+    test("Like a Post with invalid ID returns 500", async () => {
+        const res = await request(expressApp)
+            .put("/api/posts/invalid_id_format/like")
+            .set("Authorization", `Bearer ${testUser.accessToken}`);
+
+        expect(res.status).toBe(500);
+        expect(res.body).toHaveProperty("message");
+    });
 });

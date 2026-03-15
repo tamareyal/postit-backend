@@ -223,4 +223,40 @@ router.put("/:id", authenticate, authorizeOwner(PostsModel, post => post.sender_
  */
 router.delete("/:id", authenticate, authorizeOwner(PostsModel, post => post.sender_id.toString()), postsController.delete);
 
+// Route to toggle like on a specific post by ID
+/**
+ * @swagger
+ * /api/posts/{id}/like:
+ *   put:
+ *     tags:
+ *       - Posts
+ *     summary: Toggle like on a post
+ *     description: Adds a like if the authenticated user has not liked the post yet, or removes it if they have. Returns the new like count.
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The post ID.
+ *     responses:
+ *       200:
+ *         description: Like toggled successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 likes:
+ *                   type: integer
+ *                   description: The new total number of likes.
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Post not found
+ */
+router.put("/:id/like", authenticate, postsController.like);
+
 export default router;
