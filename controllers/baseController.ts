@@ -1,12 +1,15 @@
 import { Request, Response } from 'express';
 import { Model } from 'mongoose';
+import Querier, { QuerierError } from '../data/models/querier';
 
 // BaseController for basic CRUD operations can be extended\overwritten by specific controllers
 class BaseController<T> {
     model: Model<T>;
+    querier: Querier<T>;
 
     constructor(model: Model<T>) {
         this.model = model;
+        this.querier = new Querier<T>(model);
     }
 
     getAll = async (req: Request, res: Response) => {
@@ -64,6 +67,7 @@ class BaseController<T> {
     getNextPage = async (req: Request, res: Response) => {
         const limit = Math.min(parseInt(req.query.limit as string) || 10, 100);
         const lastCreatedAt = req.query.lastCreatedAt as string | undefined;
+        const queryHash = req.query.queryHash as string | undefined;
 
         const filter: Record<string, unknown> = {};
         if (lastCreatedAt) {
@@ -75,12 +79,23 @@ class BaseController<T> {
         }
 
         try {
-            const data = await this.model.find(filter).sort({ createdAt: -1 }).limit(limit);
-            const nextCursor = data.length > 0
-                ? (data[data.length - 1] as unknown as { createdAt: Date }).createdAt
-                : null;
-            return res.status(200).json({ data, nextCursor });
+            if (queryHash) {
+                const page = await this.querier.getNextPage({
+                    queryHash,
+                    cursor: lastCreatedAt
+                });
+                return res.status(200).json(page);
+            }
+
+            const page = await this.querier.startSession({
+                filter,
+                limit
+            });
+            return res.status(200).json(page);
         } catch (error) {
+            if (error instanceof QuerierError) {
+                return res.status(error.statusCode).json({ message: error.message });
+            }
             return res.status(500).json({ message: error instanceof Error ? error.message : "Error" });
         }
     };
