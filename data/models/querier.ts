@@ -73,7 +73,7 @@ class Querier<T> {
 		return this.fetchPage(options.queryHash, session, cursor);
 	}
 
-	private getSessionByHash(queryHash: string): QuerySession<T> {
+	getSessionByHash(queryHash: string): QuerySession<T> {
 		const stored = Querier.sessions.get(queryHash);
 		if (!stored || stored.modelName !== this.model.modelName) {
 			throw new QuerierError(400, "Invalid queryHash");

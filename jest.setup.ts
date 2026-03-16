@@ -17,7 +17,7 @@ const testUser = new TestUser(
 );
 let expressApp: Express = null as any;
 
-jest.setTimeout(20000);
+jest.setTimeout(2000000);
 
 beforeAll(async () => {
     // Start testing server

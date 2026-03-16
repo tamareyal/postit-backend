@@ -4,6 +4,7 @@ import PostsModel, { Post } from '../models/posts';
 import BaseController from './baseController';
 import ollamaService, { OllamaServiceError } from '../services/ollamaService';
 import { MongoFilterSanitizerError, sanitizeMongoFilter } from '../utils/mongoFilterSanitizer';
+import { unescapeLeadingUnderscores } from 'typescript';
 
 class PostsController extends BaseController<Post> {
     constructor() {
@@ -11,30 +12,59 @@ class PostsController extends BaseController<Post> {
     }
 
     search = async (req: AuthenticatedRequest, res: Response) => {
-        const { query, limit, debug } = req.body as {
-            query?: string;
-            limit?: number | string;
-            debug?: boolean;
-        };
 
-        if (typeof query !== 'string' || !query.trim()) {
+        const query = req.body.query as string | undefined;
+        const limitQuery = req.query.limit as string | undefined;
+        const lastCreatedAt = req.query.lastCreatedAt as string | undefined;
+        const queryHash = (req.query.queryHash as string | undefined) ?? (req.query.hash as string | undefined);
+        const hasPaginationParams = limitQuery !== undefined || lastCreatedAt !== undefined || queryHash !== undefined;
+        let cursor: Date | undefined;
+
+        if (typeof query !== 'string' || !query.trim() ) {
             return res.status(400).json({ message: 'query is required' });
         }
 
-        const parsedLimit = Math.min(Math.max(Number(limit) || 10, 1), 100);
+        // return if  query is undefined
+        if (!query) {
+            return res.status(400).json({ message: 'query is required' });
+        }
+
+        if (query.length > 500) {
+            throw new OllamaServiceError("Query too long");
+        }
+
+        if (lastCreatedAt) {
+            cursor = new Date(lastCreatedAt);
+            if (isNaN(cursor.getTime())) {
+                return res.status(400).json({ message: "Invalid lastCreatedAt value" });
+            }
+        }
 
         try {
-            const llmFilter = await ollamaService.buildSearchFilter(query);
-            const safeFilter = sanitizeMongoFilter(llmFilter);
+            if (queryHash) {
+                const page =  await this.querier.getNextPage({
+                    queryHash,
+                    cursor: lastCreatedAt
+                });
+                return res.status(200).json(page);
+            } else {
+                console.log('Building search filter for query:', query);
+                const parsedLimit = Math.min(Math.max(Number(limitQuery) || 10, 1), 100);
+                const llmFilter = await ollamaService.buildSearchFilter(query?.toString() ?? '');
+                const filter = sanitizeMongoFilter(llmFilter);
 
-            const page = await this.querier.startSession({
-                filter: safeFilter,
-                limit: parsedLimit
-            });
-            return res.status(200).json({
-                ...page,
-                ...(debug || process.env.NODE_ENV !== 'production' ? { mongoFilter: safeFilter } : {})
-            });
+
+                const page = await this.querier.startSession({
+                    filter: filter,
+                    limit: parsedLimit
+                });
+                console.dir(filter, { depth: null });
+
+                return res.status(200).json({
+                    ...page,
+                    ...(process.env.NODE_ENV !== 'production' ? { mongoFilter: filter } : {})
+                });
+            }
 
         } catch (error) {
             if (error instanceof MongoFilterSanitizerError) {
