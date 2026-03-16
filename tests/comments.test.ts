@@ -103,6 +103,33 @@ describe("Comments API", () => {
         expect(res.body.length).toBe(expectedComments.length);
     });
 
+    test("Get Comments by Post ID with pagination params", async () => {
+        const postId = comments[1].post_id;
+        const firstPageRes = await request(serverURL)
+            .get(`/api/comments/posts/${postId}?limit=1`)
+            .set("Authorization", `Bearer ${testUser.accessToken}`);
+
+        expect(firstPageRes.status).toBe(200);
+        expect(Array.isArray(firstPageRes.body.data)).toBe(true);
+        expect(firstPageRes.body.data.length).toBeLessThanOrEqual(1);
+        expect(firstPageRes.body).toHaveProperty("queryHash");
+        for (const comment of firstPageRes.body.data) {
+            expect(comment.post_id).toBe(postId);
+        }
+
+        if (firstPageRes.body.nextCursor) {
+            const nextPageRes = await request(serverURL)
+                .get(`/api/comments/posts/${postId}?hash=${firstPageRes.body.queryHash}&lastCreatedAt=${encodeURIComponent(firstPageRes.body.nextCursor)}`)
+                .set("Authorization", `Bearer ${testUser.accessToken}`);
+
+            expect(nextPageRes.status).toBe(200);
+            expect(Array.isArray(nextPageRes.body.data)).toBe(true);
+            for (const comment of nextPageRes.body.data) {
+                expect(comment.post_id).toBe(postId);
+            }
+        }
+    });
+
 
     test("Update a Comment", async () => {
         const commentToUpdate = comments[0];
@@ -136,6 +163,51 @@ describe("Comments API", () => {
             .set("Authorization", `Bearer ${testUser.accessToken}`);
         
         expect(getRes.status).toBe(404);
+    });
+
+    test("Post commentsCount increments on comment creation and decrements on deletion", async () => {
+        const postRes = await request(serverURL)
+            .post("/api/posts")
+            .set("Authorization", `Bearer ${testUser.accessToken}`)
+            .send({
+                title: "Comments counter test post",
+                content: "Used to verify comment counter updates."
+            });
+
+        expect(postRes.status).toBe(201);
+        expect(postRes.body.commentsCount).toBe(0);
+
+        const postId = postRes.body._id;
+
+        const createCommentRes = await request(serverURL)
+            .post("/api/comments")
+            .set("Authorization", `Bearer ${testUser.accessToken}`)
+            .send({
+                post_id: postId,
+                message: "Counter test comment"
+            });
+
+        expect(createCommentRes.status).toBe(201);
+
+        const postAfterCreateRes = await request(serverURL)
+            .get(`/api/posts/${postId}`)
+            .set("Authorization", `Bearer ${testUser.accessToken}`);
+
+        expect(postAfterCreateRes.status).toBe(200);
+        expect(postAfterCreateRes.body.commentsCount).toBe(1);
+
+        const deleteCommentRes = await request(serverURL)
+            .delete(`/api/comments/${createCommentRes.body._id}`)
+            .set("Authorization", `Bearer ${testUser.accessToken}`);
+
+        expect(deleteCommentRes.status).toBe(200);
+
+        const postAfterDeleteRes = await request(serverURL)
+            .get(`/api/posts/${postId}`)
+            .set("Authorization", `Bearer ${testUser.accessToken}`);
+
+        expect(postAfterDeleteRes.status).toBe(200);
+        expect(postAfterDeleteRes.body.commentsCount).toBe(0);
     });
 
 

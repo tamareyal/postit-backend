@@ -1,16 +1,23 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
+
 export interface Post extends Document {
     title: string;
     content: string;
     sender_id: mongoose.Schema.Types.ObjectId;
     image?: string;
     likes: mongoose.Schema.Types.ObjectId[];
+    commentsCount: number;
     createdAt: Date;
     updatedAt: Date;
 }
 
 const postSchema = new Schema<Post>({
+        commentsCount: {
+            type: Number,
+            default: 0,
+            required: true
+        },
     title: {
         type: String,
         required: true
