@@ -1,10 +1,11 @@
 import { AuthenticatedRequest } from '../middlewares/authMiddleware';
 import { Request, Response } from 'express';
+import { QuerierError } from '../data/models/querier';
 import PostsModel, { Post } from '../models/posts';
 import BaseController from './baseController';
 import ollamaService, { OllamaServiceError } from '../services/ollamaService';
 import { MongoFilterSanitizerError, sanitizeMongoFilter } from '../utils/mongoFilterSanitizer';
-import { unescapeLeadingUnderscores } from 'typescript';
+import mongoose from 'mongoose';
 
 class PostsController extends BaseController<Post> {
     constructor() {
@@ -95,6 +96,60 @@ class PostsController extends BaseController<Post> {
 
         }
     }
+
+    getByUserId = async (req: Request, res: Response) => {
+        const userId = req.query.userId as string | undefined;
+
+        if (!userId) {
+            return res.status(400).json({ message: 'userId is required' });
+        }
+
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            return res.status(400).json({ message: 'Invalid userId' });
+        }
+
+        const limitQuery = req.query.limit as string | undefined;
+        const lastCreatedAt = req.query.lastCreatedAt as string | undefined;
+        const queryHash = (req.query.queryHash as string | undefined) ?? (req.query.hash as string | undefined);
+        let cursor: Date | undefined;
+
+        if (lastCreatedAt) {
+            cursor = new Date(lastCreatedAt);
+            if (isNaN(cursor.getTime())) {
+                return res.status(400).json({ message: "Invalid lastCreatedAt value" });
+            }
+        }
+
+        try {
+            if (queryHash) {
+                if (!cursor) {
+                    return res.status(400).json({ message: "lastCreatedAt is required when queryHash is provided" });
+                }
+                const page = await this.querier.getNextPage({
+                    queryHash,
+                    cursor: cursor.toISOString()
+                });
+                return res.status(200).json(page);
+            }
+            else {
+                const limit = Math.min(parseInt(limitQuery as string) || 10, 100);
+                const filter: Record<string, unknown> = { sender_id: userId };
+                if (cursor) {
+                    filter.createdAt = { $lt: cursor };
+                }
+
+                const page = await this.querier.startSession({ filter, limit });
+                return res.status(200).json(page);
+            }
+        }
+        
+        catch (error) {
+            if (error instanceof QuerierError) {
+                return res.status(error.statusCode).json({ message: error.message });
+            }
+            return res.status(500).json({ message: error instanceof Error ? error.message : "Error" });
+        }
+    };
 
     like = async (req: AuthenticatedRequest, res: Response) => {
         const postId = req.params.id;

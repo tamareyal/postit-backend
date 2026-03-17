@@ -184,6 +184,61 @@ router.post("/", authenticate, postsController.create);
  */
 router.get("/page", authenticate, postsController.getNextPage);
 
+// Route to get posts by user ID (for profile page)
+/**
+ * @swagger
+ * /api/posts/user:
+ *   get:
+ *     tags:
+ *       - Posts
+ *     summary: Get posts by user ID
+ *     description: Returns a paginated list of posts created by the specified user, sorted by creation date descending. Use for profile pages.
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The user's ID.
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of posts to return (max 100).
+ *       - in: query
+ *         name: lastCreatedAt
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Cursor for pagination. Pass the previous response's nextCursor to get the next page.
+ *     responses:
+ *       200:
+ *         description: A page of posts by the user.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Post'
+ *                 nextCursor:
+ *                   type: string
+ *                   format: date-time
+ *                   nullable: true
+ *                 queryHash:
+ *                   type: string
+ *       400:
+ *         description: Invalid lastCreatedAt value
+ *       401:
+ *         description: Unauthorized
+ */
+router.get("/user", authenticate, postsController.getByUserId);
+
 // Route to get a specific post by ID
 /**
  * @swagger

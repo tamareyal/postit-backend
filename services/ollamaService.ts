@@ -85,7 +85,7 @@ export class OllamaService {
     Allowed operators: $eq, $ne, $gt, $gte, $lt, $lte, $in, $regex, $options, $and, $or
 
     Rules:
-    - ALWAYS search both "title" and "content" using the same query with $or for general topic queries.
+    - Always test both "title" and "content" fields for matches to the query and wrap that in $or.
     - Use $regex with $options: "i" for case-insensitive matching.
     - Fields: title, content, createdAt (date).
     - If the query refers to multiple conditions, combine them using $and.
