@@ -33,9 +33,12 @@ class CommentsController extends BaseController<Comment> {
         try {
             if (hasPaginationParams) {
                 if (queryHash) {
+                    if (!cursor) {
+                        return res.status(400).json({ message: "lastCreatedAt is required when queryHash is provided" });
+                    }
                     const page = await this.querier.getNextPage({
                         queryHash,
-                        cursor: lastCreatedAt
+                        cursor: cursor.toISOString()
                     });
                     return res.status(200).json(page);
                 }
