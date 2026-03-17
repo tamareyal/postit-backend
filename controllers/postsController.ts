@@ -97,7 +97,7 @@ class PostsController extends BaseController<Post> {
         }
     }
 
-    getByUserId = async (req: Request, res: Response) => {
+    getByUserId = async (req: AuthenticatedRequest, res: Response) => {
         const userId = req.query.userId as string | undefined;
 
         if (!userId) {
@@ -111,6 +111,7 @@ class PostsController extends BaseController<Post> {
         const limitQuery = req.query.limit as string | undefined;
         const lastCreatedAt = req.query.lastCreatedAt as string | undefined;
         const queryHash = (req.query.queryHash as string | undefined) ?? (req.query.hash as string | undefined);
+        const hasPaginationParams = limitQuery !== undefined || lastCreatedAt !== undefined || queryHash !== undefined;
         let cursor: Date | undefined;
 
         if (lastCreatedAt) {
@@ -121,26 +122,34 @@ class PostsController extends BaseController<Post> {
         }
 
         try {
-            if (queryHash) {
-                if (!cursor) {
-                    return res.status(400).json({ message: "lastCreatedAt is required when queryHash is provided" });
+            const filter: Record<string, unknown> = {
+                sender_id: new mongoose.Types.ObjectId(userId)
+            };
+            
+            if (hasPaginationParams) {
+                if (queryHash) {
+                    if (!cursor) {
+                        return res.status(400).json({ message: "lastCreatedAt is required when queryHash is provided" });
+                    }
+                    const page = await this.querier.getNextPage({
+                        queryHash,
+                        cursor: cursor.toISOString()
+                    });
+                    return res.status(200).json(page);
                 }
-                const page = await this.querier.getNextPage({
-                    queryHash,
-                    cursor: cursor.toISOString()
-                });
-                return res.status(200).json(page);
-            }
-            else {
-                const limit = Math.min(parseInt(limitQuery as string) || 10, 100);
-                const filter: Record<string, unknown> = { sender_id: userId };
+
+
                 if (cursor) {
                     filter.createdAt = { $lt: cursor };
                 }
 
+                const limit = Math.min(parseInt(limitQuery as string) || 10, 100);
                 const page = await this.querier.startSession({ filter, limit });
                 return res.status(200).json(page);
             }
+
+            const data = await PostsModel.find({ filter });
+            return res.status(200).json(data);
         }
         
         catch (error) {
