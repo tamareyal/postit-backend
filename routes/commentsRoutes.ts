@@ -154,7 +154,11 @@ router.get("/:id", authenticate, commentsController.getById);
  *     tags:
  *       - Comments
  *     summary: Retrieve comments for a specific post by post ID
- *     description: Retrieve comments associated with a specific post by its ID.
+ *     description: |
+ *       Retrieve comments associated with a specific post by its ID.
+ *       If at least one pagination query parameter is supplied (`limit`, `lastCreatedAt`, `queryHash`, or `hash`),
+ *       the endpoint returns a paged response and starts/continues a query session using `queryHash`.
+ *       Without pagination query parameters, the endpoint returns the full comments list for the post.
  *     security:
  *       - BearerAuth: []
  *     parameters:
@@ -164,15 +168,52 @@ router.get("/:id", authenticate, commentsController.getById);
  *         schema:
  *           type: string
  *         description: The post ID.
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of comments to return (max 100). Triggers paged mode when provided.
+ *       - in: query
+ *         name: lastCreatedAt
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Cursor for pagination. For a new session it limits results to comments created before this timestamp.
+ *       - in: query
+ *         name: queryHash
+ *         schema:
+ *           type: string
+ *         description: Existing pagination session hash to continue.
+ *       - in: query
+ *         name: hash
+ *         schema:
+ *           type: string
+ *         description: Alias of `queryHash` for continuing an existing pagination session.
  *     responses:
  *       200:
- *         description: A list of comments for the specified post.
+ *         description: Either a full list of comments (no pagination params) or a paged response (when pagination params are provided).
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 $ref: '#/components/schemas/Comment'
+ *               oneOf:
+ *                 - type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Comment'
+ *                 - type: object
+ *                   properties:
+ *                     data:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Comment'
+ *                     nextCursor:
+ *                       type: string
+ *                       format: date-time
+ *                       nullable: true
+ *                     queryHash:
+ *                       type: string
+ *       400:
+ *         description: Invalid postId, queryHash, or lastCreatedAt value
  *       401:
  *         description: Unauthorized
  *       404:

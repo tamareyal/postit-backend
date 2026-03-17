@@ -68,10 +68,11 @@ class BaseController<T> {
         const limit = Math.min(parseInt(req.query.limit as string) || 10, 100);
         const lastCreatedAt = req.query.lastCreatedAt as string | undefined;
         const queryHash = req.query.queryHash as string | undefined;
+        let cursor: Date | undefined;
 
         const filter: Record<string, unknown> = {};
         if (lastCreatedAt) {
-            const cursor = new Date(lastCreatedAt);
+            cursor = new Date(lastCreatedAt);
             if (isNaN(cursor.getTime())) {
                 return res.status(400).json({ message: "Invalid lastCreatedAt value" });
             }
@@ -80,9 +81,12 @@ class BaseController<T> {
 
         try {
             if (queryHash) {
+                if (!cursor) {
+                    return res.status(400).json({ message: "lastCreatedAt is required when queryHash is provided" });
+                }
                 const page = await this.querier.getNextPage({
                     queryHash,
-                    cursor: lastCreatedAt
+                    cursor: cursor.toISOString()
                 });
                 return res.status(200).json(page);
             }
