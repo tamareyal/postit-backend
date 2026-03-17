@@ -75,39 +75,31 @@ describe("Posts API", () => {
         expect(res.body.message).toBe("Invalid lastCreatedAt value");
     });
 
-    test("Get Posts by User ID (profile feed)", async () => {
+    test("Get Posts by User ID (profile feed) - no pagination returns all", async () => {
         const res = await request(serverURL)
-            .get(`/api/posts/user?userId=${encodeURIComponent(testUser.id as string)}`)
+            .get(`/api/posts/users/${encodeURIComponent(testUser.id as string)}`)
             .set("Authorization", `Bearer ${testUser.accessToken}`);
 
         expect(res.status).toBe(200);
-        expect(Array.isArray(res.body.data)).toBe(true);
-        expect(res.body.data.length).toBe(posts.length);
+        expect(Array.isArray(res.body)).toBe(true);
+        expect(res.body.length).toBe(posts.length);
 
-        for (const post of res.body.data) {
+        for (const post of res.body) {
             expect(post.sender_id).toBe(testUser.id);
         }
     });
 
     test("Get Posts by User ID -> requires authentication", async () => {
         const res = await request(serverURL)
-            .get(`/api/posts/user?userId=${encodeURIComponent(testUser.id as string)}`);
+            .get(`/api/posts/users/${encodeURIComponent(testUser.id as string)}`);
 
         expect(res.status).toBe(401);
     });
 
-    test("Get Posts by User ID -> 400 when missing userId", async () => {
-        const res = await request(serverURL)
-            .get("/api/posts/user")
-            .set("Authorization", `Bearer ${testUser.accessToken}`);
-
-        expect(res.status).toBe(400);
-        expect(res.body.message).toBe("userId is required");
-    });
 
     test("Get Posts by User ID -> 400 when invalid userId", async () => {
         const res = await request(serverURL)
-            .get("/api/posts/user?userId=not-an-objectid")
+            .get("/api/posts/users/not-an-objectid")
             .set("Authorization", `Bearer ${testUser.accessToken}`);
 
         expect(res.status).toBe(400);
@@ -116,7 +108,7 @@ describe("Posts API", () => {
 
     test("Get Posts by User ID -> paginates using lastCreatedAt", async () => {
         const firstPageRes = await request(serverURL)
-            .get(`/api/posts/user?userId=${encodeURIComponent(testUser.id as string)}&limit=2`)
+            .get(`/api/posts/users/${encodeURIComponent(testUser.id as string)}?limit=2`)
             .set("Authorization", `Bearer ${testUser.accessToken}`);
 
         expect(firstPageRes.status).toBe(200);
@@ -127,7 +119,7 @@ describe("Posts API", () => {
         if (firstPageRes.body.nextCursor) {
             const nextPageRes = await request(serverURL)
                 .get(
-                    `/api/posts/user?userId=${encodeURIComponent(testUser.id as string)}&limit=2&lastCreatedAt=${encodeURIComponent(firstPageRes.body.nextCursor)}`
+                    `/api/posts/users/${encodeURIComponent(testUser.id as string)}?limit=2&lastCreatedAt=${encodeURIComponent(firstPageRes.body.nextCursor)}`
                 )
                 .set("Authorization", `Bearer ${testUser.accessToken}`);
 

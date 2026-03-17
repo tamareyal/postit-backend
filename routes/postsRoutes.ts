@@ -187,7 +187,7 @@ router.get("/page", authenticate, postsController.getNextPage);
 // Route to get posts by user ID (for profile page)
 /**
  * @swagger
- * /api/posts/user:
+ * /api/posts/users/{userId}:
  *   get:
  *     tags:
  *       - Posts
@@ -196,7 +196,7 @@ router.get("/page", authenticate, postsController.getNextPage);
  *     security:
  *       - BearerAuth: []
  *     parameters:
- *       - in: query
+ *       - in: path
  *         name: userId
  *         required: true
  *         schema:
@@ -237,7 +237,7 @@ router.get("/page", authenticate, postsController.getNextPage);
  *       401:
  *         description: Unauthorized
  */
-router.get("/user", authenticate, postsController.getByUserId);
+router.get("/users/:userId", authenticate, postsController.getByUserId);
 
 // Route to get a specific post by ID
 /**

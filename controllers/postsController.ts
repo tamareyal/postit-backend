@@ -98,7 +98,7 @@ class PostsController extends BaseController<Post> {
     }
 
     getByUserId = async (req: AuthenticatedRequest, res: Response) => {
-        const userId = req.query.userId as string | undefined;
+        const userId = req.params.userId as string | undefined;
 
         if (!userId) {
             return res.status(400).json({ message: 'userId is required' });
@@ -145,10 +145,13 @@ class PostsController extends BaseController<Post> {
 
                 const limit = Math.min(parseInt(limitQuery as string) || 10, 100);
                 const page = await this.querier.startSession({ filter, limit });
+                console.log(page);
+                console.log(userId);
                 return res.status(200).json(page);
+            
             }
 
-            const data = await PostsModel.find({ filter });
+            const data = await this.model.find(filter).sort({ createdAt: -1 }).lean();
             return res.status(200).json(data);
         }
         
