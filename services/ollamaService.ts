@@ -17,7 +17,7 @@ type OllamaConfig = {
 const loadConfig = (): OllamaConfig => ({
     baseUrl: (process.env.OLLAMA_URL || 'http://localhost:11434').replace(/\/$/, ''),
     model: process.env.OLLAMA_MODEL || 'llama3.1',
-    timeoutMs: Number(process.env.OLLAMA_TIMEOUT_MS) || 1000000
+    timeoutMs: Number(process.env.OLLAMA_TIMEOUT_MS) || 120000
 });
 
 

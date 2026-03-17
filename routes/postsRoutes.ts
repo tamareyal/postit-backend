@@ -76,6 +76,24 @@ router.get("/", authenticate, postsController.getAll);
  *     description: Accepts a natural-language search query, converts it into a MongoDB filter via the configured LLM service, sanitizes the filter, and returns matching posts.
  *     security:
  *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of comments to return (max 100). Triggers paged mode when provided.
+ *       - in: query
+ *         name: lastCreatedAt
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Cursor for pagination. For a new session it limits results to comments created before this timestamp.
+ *       - in: query
+ *         name: queryHash
+ *         schema:
+ *           type: string
+ *         description: Existing pagination session hash to continue.
  *     requestBody:
  *       required: true
  *       content:
@@ -88,18 +106,6 @@ router.get("/", authenticate, postsController.getAll);
  *               query:
  *                 type: string
  *                 description: Natural-language description of the desired posts.
- *               limit:
- *                 type: integer
- *                 minimum: 1
- *                 maximum: 100
- *                 default: 10
- *               lastCreatedAt:
- *                 type: string
- *                 format: date-time
- *                 description: Optional cursor for fetching the next page.
- *               debug:
- *                 type: boolean
- *                 description: Include the sanitized Mongo filter in the response.
  *     responses:
  *       200:
  *         description: Matching posts.

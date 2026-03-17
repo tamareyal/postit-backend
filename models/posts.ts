@@ -35,10 +35,6 @@ const postSchema = new Schema<Post>({
     }
 }, { timestamps: true });
 
-postSchema.index({
-  title: "text",
-  content: "text"
-});
 
 // We create a Model which controls the 'Posts' collection in MongoDB consisting of Post documents defined by postSchema
 const PostModel: Model<Post> = mongoose.model<Post>('Posts', postSchema);

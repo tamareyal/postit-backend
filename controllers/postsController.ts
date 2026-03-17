@@ -17,14 +17,11 @@ class PostsController extends BaseController<Post> {
         const limitQuery = req.query.limit as string | undefined;
         const lastCreatedAt = req.query.lastCreatedAt as string | undefined;
         const queryHash = (req.query.queryHash as string | undefined) ?? (req.query.hash as string | undefined);
-        const hasPaginationParams = limitQuery !== undefined || lastCreatedAt !== undefined || queryHash !== undefined;
         let cursor: Date | undefined;
 
         if (typeof query !== 'string' || !query.trim() ) {
             return res.status(400).json({ message: 'query is required' });
         }
-
-        // return if  query is undefined
         if (!query) {
             return res.status(400).json({ message: 'query is required' });
         }
@@ -48,7 +45,6 @@ class PostsController extends BaseController<Post> {
                 });
                 return res.status(200).json(page);
             } else {
-                console.log('Building search filter for query:', query);
                 const parsedLimit = Math.min(Math.max(Number(limitQuery) || 10, 1), 100);
                 const llmFilter = await ollamaService.buildSearchFilter(query?.toString() ?? '');
                 const filter = sanitizeMongoFilter(llmFilter);
