@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Request } from "express";
 import { imageUploader, deleteImage } from "../controllers/storageController";
 
 const router = Router();
@@ -82,7 +82,7 @@ router.delete("/upload/:filename", (req, res) => {
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.post("/upload", imageUploader.single("image"), (req, res) => {
+router.post("/upload", imageUploader.single("image"), (req: Request & { file?: Express.Multer.File }, res) => {
   if (!req.file) {
     res.status(400).json({ message: "No image file provided" });
     return;
