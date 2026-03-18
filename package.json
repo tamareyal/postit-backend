@@ -1,8 +1,9 @@
 {
   "scripts": {
     "start": "tsc && node ./dist/server.js",
+    "prod": "cp .env.prod .env && tsc -p tsconfig_prod.json && pm2 restart ecosystem.config.js --env production",
     "lint": "eslint . --ext .ts",
-    "dev": "nodemon server.ts",
+    "dev": "cp .env.dev .env && nodemon server.ts",
     "test": "tsc && jest --runInBand --detectOpenHandles --forceExit --testPathPatterns=tests/.*.test.ts",
     "testComments": "tsc && jest --runInBand --detectOpenHandles --forceExit --testPathPatterns=tests/comments.test.ts",
     "testPosts": "tsc && jest --runInBand --detectOpenHandles --forceExit --testPathPatterns=tests/posts.test.ts",
