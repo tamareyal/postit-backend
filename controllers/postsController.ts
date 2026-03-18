@@ -21,10 +21,9 @@ class PostsController extends BaseController<Post> {
         const queryHash = (req.query.queryHash as string | undefined) ?? (req.query.hash as string | undefined);
         let cursor: Date | undefined;
 
-        if (!queryHash && (typeof query !== 'string' || !query.trim()) || !query) {
+        if (typeof query !== 'string' || !query.trim() || !query) {
             return res.status(400).json({ message: 'query is required' });
         }
-
 
         if (query.length > 500) {
             throw new OllamaServiceError("Query too long");
