@@ -1,7 +1,13 @@
 .env
+.env.test
+.env.prod
+.env.dev
 node_modules
 dist
 coverage
 mongodata
 !uploads/.gitkeep
 uploads/*
+client-cert.pem
+client-key.pem
+

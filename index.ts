@@ -15,9 +15,6 @@ async function startServer(port: number, mongoURL: string): Promise<[mongoose.Co
     const connection = await connectToDatabase(mongoURL);
 
     const app = setupExpress();
-    app.listen(port, () => {
-      console.log(`Server is running on port ${port}`);
-    });
 
     return [connection, app];
   } catch (error) {
