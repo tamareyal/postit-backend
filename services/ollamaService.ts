@@ -87,7 +87,7 @@ POSTS filter ("filter"):
 - Allowed fields: title, content, createdAt
 - Only add free-text matching when the query contains topical keywords (not just time/author constraints).
 - When you do add free-text matching, test both "title" and "content" for matches and wrap in $or.
-- Use $regex with $options: "i" for case-insensitive matching.
+- Always use this exact regex shape: {"$regex": "<keyword>", "$options": "i"} (case-insensitive).
 - Normalize topical keywords before putting them into $regex:
   - Convert simple English plurals to singular (e.g. "trips" -> "trip", "stories" -> "story", "buses" -> "bus").
 - If there are multiple topical keywords, search them separately:
@@ -95,7 +95,7 @@ POSTS filter ("filter"):
   - Instead, require each keyword to match (combine with $and), and for each keyword use an $or across title/content.
   - Example for keywords ["trip", "bangkok"]:
     {"$and":[{"$or":[{"title":{"$regex":"trip","$options":"i"}},{"content":{"$regex":"trip","$options":"i"}}]},{"$or":[{"title":{"$regex":"bangkok","$options":"i"}},{"content":{"$regex":"bangkok","$options":"i"}}]}]}
-- If the query refers to multiple conditions, combine with $and.
+- If the query includes BOTH topical keywords AND time constraints, combine those conditions with $and in the posts filter.
 - If the query includes time constraints (e.g. "yesterday", "one day ago", "last week", specific dates), put those ONLY in createdAt range operators ($gte/$lt/etc).
 - Do NOT include time phrases (e.g. "one day ago", "yesterday", "today", "last week") inside title/content $regex patterns.
 - If the query is purely time-based (no topical keywords), omit the title/content $or entirely and return only the createdAt filter.
@@ -105,6 +105,7 @@ USERS filter ("userFilter") - only when the query mentions a person, author, or 
 - Use $regex with $options: "i" to match author/username mentions.
 - Example: query "posts by John" -> "userFilter": {"name": {"$regex": "john", "$options": "i"}}
 - Omit "userFilter" entirely if the query does not refer to a person or author.
+- Author/person constraints must be represented ONLY via userFilter (Users.name). Do NOT try to encode author constraints inside the posts filter.
 
 Important JSON rules:
 - Do NOT use Mongo Extended JSON wrappers like "$date" or "$oid".
