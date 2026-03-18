@@ -1,10 +1,9 @@
-import dotenv from "dotenv";
+require('dotenv').config({ path: '.env' });
+
 import startServer from "./index";
 import http from "http";
 import https from "https";
 import fs from "fs";
-
-dotenv.config({ path: ".env" });
 
 const PORT = Number(process.env.PORT) || 4000;
 const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/mydatabase";

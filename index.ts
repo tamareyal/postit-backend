@@ -27,8 +27,22 @@ function setupExpress(): Express {
   const app = express();    
   app.use(express.urlencoded({ extended: false }));
   app.use(express.json());
+
+  const NODE_ENV = process.env.NODE_ENV || "development";
+  const CLIENT_URL = process.env.CLIENT_URL;
+
+  if (NODE_ENV === "production" && !CLIENT_URL) {
+    console.error("CLIENT_URL environment variable must be set in production");
+    process.exit(1);
+  }
+
+  const corsOrigin =
+  NODE_ENV === "production"
+    ? CLIENT_URL
+    : process.env.CLIENT_URL || "http://localhost:5173";
+
   app.use(cors({
-    origin: 'http://localhost:5173',
+    origin: corsOrigin,
     credentials: true, 
   }));
 
