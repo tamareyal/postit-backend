@@ -82,7 +82,7 @@ router.delete("/upload/:filename", (req, res) => {
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.post("/upload", imageUploader.single("image"), (req: Request & { file?: Express.Multer.File }, res) => {
+router.post("/upload", imageUploader.single("image"), (req: Request & { file?: { path: string } }, res) => {
   if (!req.file) {
     res.status(400).json({ message: "No image file provided" });
     return;
