@@ -7,6 +7,9 @@ const DEFAULT_ALLOWED_FIELDS = [
     'updatedAt'
 ] as const;
 
+/** Allowed fields for user-filter (author/username search). */
+const USER_FILTER_ALLOWED_FIELDS = ['name'] as const;
+
 const ALLOWED_OPERATORS = new Set([
     '$eq', '$ne', '$gt', '$gte', '$lt', '$lte',
     '$in', '$nin', '$all', '$size', '$exists',
@@ -23,7 +26,11 @@ export class MongoFilterSanitizerError extends Error {
 }
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> => {
-    return value !== null && typeof value === 'object' && !Array.isArray(value);
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+        return false;
+    }
+    const proto = Object.getPrototypeOf(value);
+    return proto === Object.prototype || proto === null;
 };
 
 const isSafePrimitive = (value: unknown): boolean => {
@@ -86,4 +93,4 @@ export const sanitizeMongoFilter = (
     return sanitizeObject(filter, new Set(allowedFields), 0);
 };
 
-export { DEFAULT_ALLOWED_FIELDS };
+export { DEFAULT_ALLOWED_FIELDS, USER_FILTER_ALLOWED_FIELDS };

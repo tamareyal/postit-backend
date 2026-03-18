@@ -25,7 +25,7 @@ describe('Posts search API', () => {
         expect(createdPost.status).toBe(201);
 
         buildSearchFilterSpy.mockResolvedValue({
-            title: { $regex: 'Searchable Alpha', $options: 'i' }
+            filter: { title: { $regex: 'Searchable Alpha', $options: 'i' } }
         });
         const response = await request(expressApp)
             .post('/api/posts/search')
@@ -67,7 +67,7 @@ describe('Posts search API', () => {
 
     test('returns 400 when the LLM returns a dangerous filter', async () => {
         buildSearchFilterSpy.mockResolvedValue({
-            $where: 'this.title.includes("cats")'
+            filter: { $where: 'this.title.includes("cats")' }
         });
         const response = await request(expressApp)
             .post('/api/posts/search')
@@ -99,7 +99,7 @@ describe('Posts search API', () => {
             .send({ title: 'Cats again', content: 'More cats' });
 
         buildSearchFilterSpy.mockResolvedValue({
-            title: { $regex: 'cats', $options: 'i' }
+            filter: { title: { $regex: 'cats', $options: 'i' } }
         });
 
         const res = await request(expressApp)
@@ -123,7 +123,7 @@ describe('Posts search API', () => {
         }
 
         buildSearchFilterSpy.mockResolvedValue({
-            content: { $regex: 'limit', $options: 'i' }
+            filter: { content: { $regex: 'limit', $options: 'i' } }
         });
 
         const res = await request(expressApp)

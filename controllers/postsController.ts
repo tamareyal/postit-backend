@@ -4,7 +4,8 @@ import { QuerierError } from '../data/models/querier';
 import PostsModel, { Post } from '../models/posts';
 import BaseController from './baseController';
 import ollamaService, { OllamaServiceError } from '../services/ollamaService';
-import { MongoFilterSanitizerError, sanitizeMongoFilter } from '../utils/mongoFilterSanitizer';
+import { MongoFilterSanitizerError, sanitizeMongoFilter, USER_FILTER_ALLOWED_FIELDS } from '../utils/mongoFilterSanitizer';
+import UserModel from '../models/users';
 import mongoose from 'mongoose';
 
 class PostsController extends BaseController<Post> {
@@ -20,12 +21,10 @@ class PostsController extends BaseController<Post> {
         const queryHash = (req.query.queryHash as string | undefined) ?? (req.query.hash as string | undefined);
         let cursor: Date | undefined;
 
-        if (typeof query !== 'string' || !query.trim() ) {
+        if (!queryHash && (typeof query !== 'string' || !query.trim()) || !query) {
             return res.status(400).json({ message: 'query is required' });
         }
-        if (!query) {
-            return res.status(400).json({ message: 'query is required' });
-        }
+
 
         if (query.length > 500) {
             throw new OllamaServiceError("Query too long");
@@ -40,26 +39,46 @@ class PostsController extends BaseController<Post> {
 
         try {
             if (queryHash) {
+                if (!cursor) {
+                    return res.status(400).json({ message: "lastCreatedAt is required when queryHash is provided" });
+                }
                 const page =  await this.querier.getNextPage({
                     queryHash,
-                    cursor: lastCreatedAt
+                    cursor: cursor.toISOString()
                 });
                 return res.status(200).json(page);
             } else {
                 const parsedLimit = Math.min(Math.max(Number(limitQuery) || 10, 1), 100);
-                const llmFilter = await ollamaService.buildSearchFilter(query?.toString() ?? '');
+                const { filter: llmFilter, userFilter: llmUserFilter } = await ollamaService.buildSearchFilter(query?.toString() ?? '');
                 const filter = sanitizeMongoFilter(llmFilter);
 
+                let combinedFilter: Record<string, unknown> = filter;
+
+                if (llmUserFilter && Object.keys(llmUserFilter).length > 0) {
+                    const userFilter = sanitizeMongoFilter(llmUserFilter, USER_FILTER_ALLOWED_FIELDS);
+                    const users = await UserModel.find(userFilter).select('_id').lean();
+                    const userIds = users.map((u: { _id: unknown }) => u._id);
+                    if (userIds.length > 0) {
+                        combinedFilter = {
+                            $or: [
+                                filter,
+                                { sender_id: { $in: userIds } }
+                            ]
+                        };
+                    }
+                }
 
                 const page = await this.querier.startSession({
-                    filter: filter,
+                    filter: combinedFilter,
                     limit: parsedLimit
                 });
-                console.dir(filter, { depth: null });
+                if (process.env.NODE_ENV !== 'production') {
+                    console.dir(combinedFilter, { depth: null });
+                }
 
                 return res.status(200).json({
                     ...page,
-                    ...(process.env.NODE_ENV !== 'production' ? { mongoFilter: filter } : {})
+                    ...(process.env.NODE_ENV !== 'production' ? { mongoFilter: combinedFilter } : {})
                 });
             }
 
@@ -145,8 +164,6 @@ class PostsController extends BaseController<Post> {
 
                 const limit = Math.min(parseInt(limitQuery as string) || 10, 100);
                 const page = await this.querier.startSession({ filter, limit });
-                console.log(page);
-                console.log(userId);
                 return res.status(200).json(page);
             
             }

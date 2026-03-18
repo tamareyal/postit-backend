@@ -33,7 +33,8 @@ export class OllamaService {
         });
     }
 
-    async buildSearchFilter(query: string): Promise<Record<string, unknown>> {
+    /** Returns post filter and optional user filter (for searching by author name). */
+    async buildSearchFilter(query: string): Promise<{ filter: Record<string, unknown>; userFilter?: Record<string, unknown> }> {
         try {
             const response = await this.api.post('/api/chat', {
                 model: this.config.model,
@@ -53,49 +54,55 @@ export class OllamaService {
             if (!rawContent) {
                 console.error('[OllamaService] No content in response:', response.data);
             }
-            let parsed;
+            let parsed: { filter?: Record<string, unknown>; userFilter?: Record<string, unknown> };
             try {
                 parsed = JSON.parse(rawContent);
             } catch (err) {
                 console.error('[OllamaService] Failed to parse content:', rawContent, err);
                 throw new OllamaServiceError('Failed to parse LLM response as JSON');
-            }   
-            if (!parsed || typeof parsed !== "object" || !parsed.filter) {
-                console.error('[OllamaService] Invalid LLM response schema:', parsed);
-                throw new OllamaServiceError("Invalid LLM response schema");
             }
-            return parsed.filter;
+            if (!parsed || typeof parsed !== 'object' || !parsed.filter) {
+                console.error('[OllamaService] Invalid LLM response schema:', parsed);
+                throw new OllamaServiceError('Invalid LLM response schema');
+            }
+            return {
+                filter: parsed.filter,
+                userFilter: parsed.userFilter && typeof parsed.userFilter === 'object' ? parsed.userFilter : undefined
+            };
         }
-        catch (error: any) {
+        catch (error: unknown) {
             if (error instanceof OllamaServiceError) throw error;
-            throw new OllamaServiceError(error.message || 'Failed to communicate with Ollama');
+            throw new OllamaServiceError(error instanceof Error ? error.message : 'Failed to communicate with Ollama');
         }
     }
 
     private getSystemPrompt(): string {
-        const date = new Date();
         const now = new Date().toISOString();
-        console.log('Generating system prompt for date:', date.toISOString());
-    return `
-    Today is ${now}.
+        return `
+Today is ${now}.
 
-    You translate natural language search queries into MongoDB filter JSON.
-    Structure: {"filter": <MongoDB filter>}
-    Allowed fields: title, content, createdAt
-    Allowed operators: $eq, $ne, $gt, $gte, $lt, $lte, $in, $regex, $options, $and, $or
+You translate natural language search queries into MongoDB filter JSON.
 
-    Rules:
-    - Always test both "title" and "content" fields for matches to the query and wrap that in $or.
-    - Use $regex with $options: "i" for case-insensitive matching.
-    - Fields: title, content, createdAt (date).
-    - If the query refers to multiple conditions, combine them using $and.
-    - Output must be valid JSON
-    - No explanations
-    - No markdown
-    - Only return the JSON object
-    `
-    ;    
-}
+Output structure (always include "filter"; include "userFilter" only when the query mentions a person/author/username):
+{"filter": <MongoDB filter for posts>, "userFilter": <optional MongoDB filter for users>}
+
+POSTS filter ("filter"):
+- Allowed fields: title, content, createdAt
+- Always test both "title" and "content" for matches and wrap in $or.
+- Use $regex with $options: "i" for case-insensitive matching.
+- If the query refers to multiple conditions, combine with $and.
+
+USERS filter ("userFilter") – only when the query mentions a person, author, or username:
+- Allowed field: name (the user's display name).
+- Use $regex with $options: "i" to match author/username mentions.
+- Example: query "posts by John" -> "userFilter": {"name": {"$regex": "john", "$options": "i"}}
+- Omit "userFilter" entirely if the query does not refer to a person or author.
+
+Allowed operators (both filters): $eq, $ne, $gt, $gte, $lt, $lte, $in, $regex, $options, $and, $or
+
+Output must be valid JSON. No explanations, no markdown, only the JSON object.
+`;
+    }
 }
 
 export default new OllamaService();
