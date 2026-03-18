@@ -8,7 +8,11 @@
     "testPosts": "tsc && jest --runInBand --detectOpenHandles --forceExit --testPathPatterns=tests/posts.test.ts",
     "testAuth": "tsc && jest --runInBand --detectOpenHandles --forceExit --testPathPatterns=tests/auth.test.ts",
     "testUsers": "tsc && jest --runInBand --detectOpenHandles --forceExit --testPathPatterns=tests/users.test.ts",
-    "testImageUpload": "tsc && jest --runInBand --detectOpenHandles --forceExit --testPathPatterns=tests/imageUpload.test.ts"
+    "testImageUpload": "tsc && jest --runInBand --detectOpenHandles --forceExit --testPathPatterns=tests/imageUpload.test.ts",
+    "testMongoFilterSanitizer": "tsc && jest --runInBand --detectOpenHandles --forceExit --testPathPatterns=tests/unit_tests/mongoFilterSanitizer.test.ts",
+    "testOllamaService": "tsc && jest --runInBand --detectOpenHandles --forceExit --testPathPatterns=tests/unit_tests/ollamaService.test.ts",
+    "testPostSearch": "tsc && jest --runInBand --detectOpenHandles --forceExit --testPathPatterns=tests/mockSearch.test.ts",
+    "testAISearch": "tsc && jest --runInBand --detectOpenHandles --forceExit --testPathPatterns=tests/aiSearch.test.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
@@ -31,6 +35,7 @@
   "dependencies": {
     "@types/bcrypt": "^6.0.0",
     "@types/express": "^5.0.6",
+    "axios": "^1.13.6",
     "bcrypt": "^6.0.0",
     "cors": "^2.8.6",
     "dotenv": "^17.2.3",

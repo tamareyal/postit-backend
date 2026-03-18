@@ -73,7 +73,7 @@ class Querier<T> {
 		return this.fetchPage(options.queryHash, session, cursor);
 	}
 
-	private getSessionByHash(queryHash: string): QuerySession<T> {
+	getSessionByHash(queryHash: string): QuerySession<T> {
 		const stored = Querier.sessions.get(queryHash);
 		if (!stored || stored.modelName !== this.model.modelName) {
 			throw new QuerierError(400, "Invalid queryHash");
@@ -83,9 +83,16 @@ class Querier<T> {
 	}
 
 	private async fetchPage(queryHash: string, session: QuerySession<T>, cursor?: Date): Promise<PageResult<T>> {
-		const filter: Record<string, unknown> = { ...session.filter };
+		let filter: Record<string, unknown>;
 		if (cursor) {
-			filter.createdAt = { $lt: cursor };
+			filter = {
+				$and: [
+					session.filter,
+					{ createdAt: { $lt: cursor } }
+				]
+			};
+		} else {
+			filter = { ...session.filter };
 		}
 
 		const data = await this.model

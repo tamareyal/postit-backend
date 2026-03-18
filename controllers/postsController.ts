@@ -1,11 +1,95 @@
 import { AuthenticatedRequest } from '../middlewares/authMiddleware';
 import { Request, Response } from 'express';
+import { QuerierError } from '../data/models/querier';
 import PostsModel, { Post } from '../models/posts';
 import BaseController from './baseController';
+import ollamaService, { OllamaServiceError } from '../services/ollamaService';
+import { MongoFilterSanitizerError, sanitizeMongoFilter, USER_FILTER_ALLOWED_FIELDS } from '../utils/mongoFilterSanitizer';
+import UserModel from '../models/users';
+import mongoose from 'mongoose';
 
 class PostsController extends BaseController<Post> {
     constructor() {
         super(PostsModel);
+    }
+
+    search = async (req: AuthenticatedRequest, res: Response) => {
+
+        const query = req.body.query as string | undefined;
+        const limitQuery = req.query.limit as string | undefined;
+        const lastCreatedAt = req.query.lastCreatedAt as string | undefined;
+        const queryHash = (req.query.queryHash as string | undefined) ?? (req.query.hash as string | undefined);
+        let cursor: Date | undefined;
+
+        if (typeof query !== 'string' || !query.trim() || !query) {
+            return res.status(400).json({ message: 'query is required' });
+        }
+
+        if (query.length > 500) {
+            throw new OllamaServiceError("Query too long");
+        }
+
+        if (lastCreatedAt) {
+            cursor = new Date(lastCreatedAt);
+            if (isNaN(cursor.getTime())) {
+                return res.status(400).json({ message: "Invalid lastCreatedAt value" });
+            }
+        }
+
+        try {
+            if (queryHash) {
+                if (!cursor) {
+                    return res.status(400).json({ message: "lastCreatedAt is required when queryHash is provided" });
+                }
+                const page =  await this.querier.getNextPage({
+                    queryHash,
+                    cursor: cursor.toISOString()
+                });
+                return res.status(200).json(page);
+            } else {
+                const parsedLimit = Math.min(Math.max(Number(limitQuery) || 10, 1), 100);
+                const { filter: llmFilter, userFilter: llmUserFilter } = await ollamaService.buildSearchFilter(query?.toString() ?? '');
+                const filter = sanitizeMongoFilter(llmFilter);
+
+                let combinedFilter: Record<string, unknown> = filter;
+
+                if (llmUserFilter && Object.keys(llmUserFilter).length > 0) {
+                    const userFilter = sanitizeMongoFilter(llmUserFilter, USER_FILTER_ALLOWED_FIELDS);
+                    const users = await UserModel.find(userFilter).select('_id').lean();
+                    const userIds = users.map((u: { _id: unknown }) => u._id);
+                    if (userIds.length > 0) {
+                        combinedFilter = {
+                            $or: [
+                                filter,
+                                { sender_id: { $in: userIds } }
+                            ]
+                        };
+                    }
+                }
+
+                const page = await this.querier.startSession({
+                    filter: combinedFilter,
+                    limit: parsedLimit
+                });
+                if (process.env.NODE_ENV !== 'production') {
+                    console.dir(combinedFilter, { depth: null });
+                }
+
+                return res.status(200).json({
+                    ...page,
+                    ...(process.env.NODE_ENV !== 'production' ? { mongoFilter: combinedFilter } : {})
+                });
+            }
+
+        } catch (error) {
+            if (error instanceof MongoFilterSanitizerError) {
+                return res.status(400).json({ message: error.message });
+            }
+            if (error instanceof OllamaServiceError) {
+                return res.status(503).json({ message: error.message });
+            }
+            return res.status(500).json({ message: error instanceof Error ? error.message : 'Error' });
+        }
     }
 
     create = async (req: AuthenticatedRequest, res: Response) => {
@@ -30,6 +114,70 @@ class PostsController extends BaseController<Post> {
 
         }
     }
+
+    getByUserId = async (req: AuthenticatedRequest, res: Response) => {
+        const userId = req.params.userId as string | undefined;
+
+        if (!userId) {
+            return res.status(400).json({ message: 'userId is required' });
+        }
+
+        if (!mongoose.Types.ObjectId.isValid(userId)) {
+            return res.status(400).json({ message: 'Invalid userId' });
+        }
+
+        const limitQuery = req.query.limit as string | undefined;
+        const lastCreatedAt = req.query.lastCreatedAt as string | undefined;
+        const queryHash = (req.query.queryHash as string | undefined) ?? (req.query.hash as string | undefined);
+        const hasPaginationParams = limitQuery !== undefined || lastCreatedAt !== undefined || queryHash !== undefined;
+        let cursor: Date | undefined;
+
+        if (lastCreatedAt) {
+            cursor = new Date(lastCreatedAt);
+            if (isNaN(cursor.getTime())) {
+                return res.status(400).json({ message: "Invalid lastCreatedAt value" });
+            }
+        }
+
+        try {
+            const filter: Record<string, unknown> = {
+                sender_id: new mongoose.Types.ObjectId(userId)
+            };
+            
+            if (hasPaginationParams) {
+                if (queryHash) {
+                    if (!cursor) {
+                        return res.status(400).json({ message: "lastCreatedAt is required when queryHash is provided" });
+                    }
+                    const page = await this.querier.getNextPage({
+                        queryHash,
+                        cursor: cursor.toISOString()
+                    });
+                    return res.status(200).json(page);
+                }
+
+
+                if (cursor) {
+                    filter.createdAt = { $lt: cursor };
+                }
+
+                const limit = Math.min(parseInt(limitQuery as string) || 10, 100);
+                const page = await this.querier.startSession({ filter, limit });
+                return res.status(200).json(page);
+            
+            }
+
+            const data = await this.model.find(filter).sort({ createdAt: -1 }).lean();
+            return res.status(200).json(data);
+        }
+        
+        catch (error) {
+            if (error instanceof QuerierError) {
+                return res.status(error.statusCode).json({ message: error.message });
+            }
+            return res.status(500).json({ message: error instanceof Error ? error.message : "Error" });
+        }
+    };
 
     like = async (req: AuthenticatedRequest, res: Response) => {
         const postId = req.params.id;

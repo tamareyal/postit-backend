@@ -64,6 +64,76 @@ router.get("/", authenticate, postsController.getAll);
  *       401:
  *         description: Unauthorized
  */
+
+// Route to search posts using free-text parsed by the LLM service
+/**
+ * @swagger
+ * /api/posts/search:
+ *   post:
+ *     tags:
+ *       - Posts
+ *     summary: Search posts using free-text
+ *     description: Accepts a natural-language search query, converts it into a MongoDB filter via the configured LLM service, sanitizes the filter, and returns matching posts.
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of comments to return (max 100). Triggers paged mode when provided.
+ *       - in: query
+ *         name: lastCreatedAt
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Cursor for pagination. For a new session it limits results to comments created before this timestamp.
+ *       - in: query
+ *         name: queryHash
+ *         schema:
+ *           type: string
+ *         description: Existing pagination session hash to continue.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - query
+ *             properties:
+ *               query:
+ *                 type: string
+ *                 description: Natural-language description of the desired posts.
+ *     responses:
+ *       200:
+ *         description: Matching posts.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Post'
+ *                 nextCursor:
+ *                   type: string
+ *                   format: date-time
+ *                   nullable: true
+ *                 mongoFilter:
+ *                   type: object
+ *                   additionalProperties: true
+ *       400:
+ *         description: Invalid search request
+ *       401:
+ *         description: Unauthorized
+ *       503:
+ *         description: Search service unavailable
+ */
+router.post("/search", authenticate, postsController.search);
+
 router.post("/", authenticate, postsController.create);
 
 // Route to get a paginated list of posts using cursor-based pagination
@@ -113,6 +183,61 @@ router.post("/", authenticate, postsController.create);
  *         description: Unauthorized
  */
 router.get("/page", authenticate, postsController.getNextPage);
+
+// Route to get posts by user ID (for profile page)
+/**
+ * @swagger
+ * /api/posts/users/{userId}:
+ *   get:
+ *     tags:
+ *       - Posts
+ *     summary: Get posts by user ID
+ *     description: Returns a paginated list of posts created by the specified user, sorted by creation date descending. Use for profile pages.
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The user's ID.
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of posts to return (max 100).
+ *       - in: query
+ *         name: lastCreatedAt
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         description: Cursor for pagination. Pass the previous response's nextCursor to get the next page.
+ *     responses:
+ *       200:
+ *         description: A page of posts by the user.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Post'
+ *                 nextCursor:
+ *                   type: string
+ *                   format: date-time
+ *                   nullable: true
+ *                 queryHash:
+ *                   type: string
+ *       400:
+ *         description: Invalid lastCreatedAt value
+ *       401:
+ *         description: Unauthorized
+ */
+router.get("/users/:userId", authenticate, postsController.getByUserId);
 
 // Route to get a specific post by ID
 /**

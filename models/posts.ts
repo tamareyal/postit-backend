@@ -42,6 +42,7 @@ const postSchema = new Schema<Post>({
     }
 }, { timestamps: true });
 
+
 // We create a Model which controls the 'Posts' collection in MongoDB consisting of Post documents defined by postSchema
 const PostModel: Model<Post> = mongoose.model<Post>('Posts', postSchema);
 
