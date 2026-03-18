@@ -13,6 +13,10 @@ class PostsController extends BaseController<Post> {
         super(PostsModel);
     }
 
+    private isEmptyFilterObject = (filter: Record<string, unknown>): boolean => {
+        return Object.keys(filter).length === 0;
+    };
+
     search = async (req: AuthenticatedRequest, res: Response) => {
 
         const query = req.body.query as string | undefined;
@@ -57,7 +61,11 @@ class PostsController extends BaseController<Post> {
                     const userFilter = sanitizeMongoFilter(llmUserFilter, USER_FILTER_ALLOWED_FIELDS);
                     const users = await UserModel.find(userFilter).select('_id').lean();
                     const userIds = users.map((u: { _id: unknown }) => u._id);
-                    if (userIds.length > 0) {
+                    // If the post-filter is empty filter only by sender_id
+                    // If both exist, allow either content match OR author match
+                    if (this.isEmptyFilterObject(filter)) {
+                        combinedFilter = { sender_id: { $in: userIds } };
+                    } else if (userIds.length > 0) {
                         combinedFilter = {
                             $or: [
                                 filter,

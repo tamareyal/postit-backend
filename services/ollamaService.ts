@@ -12,12 +12,14 @@ type OllamaConfig = {
     baseUrl: string;
     model: string;
     timeoutMs: number;
+    apiKey?: string;
 };
 
 const loadConfig = (): OllamaConfig => ({
     baseUrl: (process.env.OLLAMA_URL || 'http://localhost:11434').replace(/\/$/, ''),
     model: process.env.OLLAMA_MODEL || 'llama3.1',
-    timeoutMs: Number(process.env.OLLAMA_TIMEOUT_MS) || 120000
+    timeoutMs: Number(process.env.OLLAMA_TIMEOUT_MS) || 120000,
+    apiKey: process.env.OLLAMA_API_KEY
 });
 
 
@@ -30,26 +32,21 @@ export class OllamaService {
         this.api = axios.create({
             baseURL: this.config.baseUrl,
             timeout: this.config.timeoutMs,
+            headers: this.config.apiKey ? { Authorization: `Bearer ${this.config.apiKey}` } : undefined
         });
     }
 
-    /** Returns post filter and optional user filter (for searching by author name). */
     async buildSearchFilter(query: string): Promise<{ filter: Record<string, unknown>; userFilter?: Record<string, unknown> }> {
         try {
-            const response = await this.api.post('/api/chat', {
+            const prompt = `${this.getSystemPrompt().trim()}\n\nUser query:\n${query}\n`;
+            const response = await this.api.post('/api/generate', {
                 model: this.config.model,
+                prompt,
                 stream: false,
-                messages: [
-                    { role: 'system', content: this.getSystemPrompt() },
-                    { role: 'user', content: query }
-                ],
-                options: {
-                    temperature: 0
-                },
-                format: 'json'
+                options: { temperature: 0 }
             });
 
-            const rawContent = response.data?.message?.content;
+            const rawContent = response.data?.response;
 
             if (!rawContent) {
                 console.error('[OllamaService] No content in response:', response.data);
@@ -88,15 +85,31 @@ Output structure (always include "filter"; include "userFilter" only when the qu
 
 POSTS filter ("filter"):
 - Allowed fields: title, content, createdAt
-- Always test both "title" and "content" for matches and wrap in $or.
-- Use $regex with $options: "i" for case-insensitive matching.
-- If the query refers to multiple conditions, combine with $and.
+- Only add free-text matching when the query contains topical keywords (not just time/author constraints).
+- When you do add free-text matching, test both "title" and "content" for matches and wrap in $or.
+- Always use this exact regex shape: {"$regex": "<keyword>", "$options": "i"} (case-insensitive).
+- Normalize topical keywords before putting them into $regex:
+  - Convert simple English plurals to singular (e.g. "trips" -> "trip", "stories" -> "story", "buses" -> "bus").
+- If there are multiple topical keywords, search them separately:
+  - Do NOT combine multiple keywords into a single regex like "trip.*bangkok".
+  - Instead, require each keyword to match (combine with $and), and for each keyword use an $or across title/content.
+  - Example for keywords ["trip", "bangkok"]:
+    {"$and":[{"$or":[{"title":{"$regex":"trip","$options":"i"}},{"content":{"$regex":"trip","$options":"i"}}]},{"$or":[{"title":{"$regex":"bangkok","$options":"i"}},{"content":{"$regex":"bangkok","$options":"i"}}]}]}
+- If the query includes BOTH topical keywords AND time constraints, combine those conditions with $and in the posts filter.
+- If the query includes time constraints (e.g. "yesterday", "one day ago", "last week", specific dates), put those ONLY in createdAt range operators ($gte/$lt/etc).
+- Do NOT include time phrases (e.g. "one day ago", "yesterday", "today", "last week") inside title/content $regex patterns.
+- If the query is purely time-based (no topical keywords), omit the title/content $or entirely and return only the createdAt filter.
 
-USERS filter ("userFilter") – only when the query mentions a person, author, or username:
+USERS filter ("userFilter") - only when the query mentions a person, author, or username:
 - Allowed field: name (the user's display name).
 - Use $regex with $options: "i" to match author/username mentions.
 - Example: query "posts by John" -> "userFilter": {"name": {"$regex": "john", "$options": "i"}}
 - Omit "userFilter" entirely if the query does not refer to a person or author.
+- Author/person constraints must be represented ONLY via userFilter (Users.name). Do NOT try to encode author constraints inside the posts filter.
+
+Important JSON rules:
+- Do NOT use Mongo Extended JSON wrappers like "$date" or "$oid".
+- Dates must be plain ISO-8601 strings (e.g. "2024-01-01T00:00:00.000Z").
 
 Allowed operators (both filters): $eq, $ne, $gt, $gte, $lt, $lte, $in, $regex, $options, $and, $or
 
